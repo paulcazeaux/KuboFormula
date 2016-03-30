@@ -12,7 +12,7 @@ function res = Derivation(N, X, G, j)
     
     res = zeros(size(G));
     for k=1:length(beta)
-        M1  = bsxfun(@times, bsxfun(@times, P.^k,     G), P.^(-k).');
+        M1 = bsxfun(@times, bsxfun(@times, P.^k,     G), P.^(-k).');
         M2 = bsxfun(@times, bsxfun(@times, P.^(-k),  G),   P.^k.' );
         res = res + beta(k)*(M1 - M2);
     end

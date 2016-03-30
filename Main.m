@@ -1,5 +1,5 @@
 % Number of points %
-N = 80;
+N = 100;
 
 % Build grid points %
 [X,Y] = meshgrid((1:N) - floor(.5*(N+1)));
@@ -15,9 +15,9 @@ for i=1:N*N
     [~, C(i,4)] = ismember(mod(X(i,:)+[0,-1],N), mod(X,N), 'rows');
 end
 
-%% Pick magnetic field and disorder strength %%
-F = 0*2/N;
-W = 0;
+% Pick magnetic field and disorder strength %%
+F = 0.1;
+W = 1;
 
 % Build Hamiltonian matrix %
 H = zeros(N*N);
@@ -38,28 +38,52 @@ R1 = V'*R1*V;
 R2 = Derivation(N, X, H, 2);
 R2 = V'*R2*V;
 
-%% Phenomenological Parameters %%
-mu = -4/9;
-T = .1;
-tau = 10.;
+% Taking the trace in real space
+tau = 40.;
 
-FD = V*diag(1./(1+exp((D-mu)/T)))*V';
-S1 = Derivation(N, X, FD, 1);
-S1 = V'*S1*V;
-
-S2 = Derivation(N, X, FD, 2);
-S2 = V'*S2*V;
-
-sigma = zeros(2);
-
-Ntot = N*N;
-for a = 1:Ntot
-    for b = 1:Ntot
-        sigma(1,1) = sigma(1,1) + R1(b,a)*S1(a,b)/(1/tau + 1i*(D(a) - D(b)));
-        sigma(1,2) = sigma(1,2) + R1(b,a)*S2(a,b)/(1/tau + 1i*(D(a) - D(b)));
-        sigma(2,1) = sigma(2,1) + R2(b,a)*S1(a,b)/(1/tau + 1i*(D(a) - D(b)));
-        sigma(2,2) = sigma(2,2) + R2(b,a)*S2(a,b)/(1/tau + 1i*(D(a) - D(b)));
-    end
+LR1 = zeros(N*N);
+LR2 = zeros(N*N);
+for a = 1:N*N
+    LR1(:,a) = R1(:,a)./(1/tau + 1i*(D(a) - D));
+    LR2(:,a) = R2(:,a)./(1/tau + 1i*(D(a) - D));
 end
-sigma = -sigma/Ntot;
-disp(sigma)
+LR1 = V*LR1*V';
+LR2 = V*LR2*V';
+
+%% Phenomenological Parameters %%
+
+T = .025;
+
+d11 = zeros(N*N,41);
+d12 = zeros(N*N,41);
+for i=0:40
+    mu = i/10-4
+    FD = V*bsxfun(@times, 1./(1+exp((D-mu)/T)), V');
+
+    FD = Derivation(N, X, FD, 1);
+
+    d11(:,i+1) = -sum(FD.*LR1.', 2);
+    d12(:,i+1) = sum(FD.*LR2.', 2);
+end
+
+%%
+r11 = zeros(1, 41);
+r12 = zeros(1, 41);
+for i=1:41
+   sigma = zeros(1,2);
+   sigma(1) = mean(d11(:,i),1);
+   sigma(2) = mean(d12(:,i),1);
+   r11(i) = sigma(1)/(sigma(1)'*sigma(1) + sigma(2)'*sigma(2))/(2*pi);
+   r12(i) = sigma(2)/(sigma(1)'*sigma(1) + sigma(2)'*sigma(2))/(2*pi);
+end
+
+figure(1); clf
+subplot(1,2,1)
+histogram2(real(d11(:,20)), 2*pi*imag(d11(:,20)), 'FaceColor', 'flat', 'BinMethod', 'scott', 'DisplayStyle', 'tile');
+subplot(1,2,2)
+histogram2(real(d12(:,20)), 2*pi*imag(d12(:,20)), 'FaceColor', 'flat', 'BinMethod', 'scott', 'DisplayStyle', 'tile');
+figure(2); clf
+subplot(1,2,1)
+plot((6:40)/10-4, real(r11(7:41)))
+subplot(1,2,2)
+plot((6:40)/10-4, real(r12(7:41)))
